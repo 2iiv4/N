@@ -1314,7 +1314,7 @@ drawCanvas.addEventListener('pointermove', (e)=>{
 
   // ─── TOUCH pan & pinch ───────────────────────────────────
   let t0x = 0, t0y = 0, startPanX = 0, startPanY = 0;
-  let prevDist = 1;
+  let prevDist = 1; // متغير لتتبع مسافة الأصابع بين الإطارات
 
   mapLayer.addEventListener('touchstart', e=>{
     if(toolActive) return;
@@ -1324,6 +1324,7 @@ drawCanvas.addEventListener('pointermove', (e)=>{
       startPanX = panX;   startPanY = panY;
     }
     if(t.length === 2){
+      // التقاط المسافة الابتدائية فور لمس الشاشة بإصبعين
       prevDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
     }
   }, { passive: true });
@@ -1347,16 +1348,20 @@ drawCanvas.addEventListener('pointermove', (e)=>{
       const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
 
       const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (dist / prevDist)));
-      // zoom toward pinch midpoint: keep the map point under the CURRENT
-      // midpoint fixed on screen, instead of mixing current mid with the
-      // previous frame's mid (that mismatch caused the jitter/jump).
+      const actualF = newScale / scale; // معامل التغير الفعلي بين الإطار الحالي والسابق
+
+      // التكبير حول المركز الحالي للإصبعين: نحسب نقطة الخريطة الواقعة
+      // تحت المركز الحالي قبل التكبير، ثم نثبّتها تحت نفس المركز بعده
+      // (الاعتماد على المركز السابق هنا كان يسبب القفزات والاهتزاز)
       const mapPtX = (midX - panX) / scale;
       const mapPtY = (midY - panY) / scale;
-      panX = midX - mapPtX * newScale;
-      panY = midY - mapPtY * newScale;
+      panX = midX - mapPtX * actualF * scale;
+      panY = midY - mapPtY * actualF * scale;
       scale = newScale;
 
       clamp(); apply();
+
+      // تحديث القيم لتصبح مرجعاً للإطار القادم
       prevDist = dist;
     }
   }, { passive: false });
