@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<title> Crime </title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;1,700&display=swap" rel="stylesheet"/>
+<style>
+/* ════════════════════════════════════════
+   TOKENS
+════════════════════════════════════════ */
+:root{
+  --black:   #0a0a0a;
+  --ink:     #111111;
+  --red:     #c8000a;
+  --white:   #f5f5f5;
+  --muted:   #888;
+  --border:  #2a2a2a;
+  --card-r:  20px;
+  --nav-h:   68px;
+  --ease:    cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;
+  overflow:hidden;
+  position:fixed;
+  touch-action:none;
+  background:var(--black);
+  font-family:'Barlow Condensed',sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* ════════════════════════════════════════
+   MAP LAYER
+════════════════════════════════════════ */
+#map-layer{
+  position:fixed;inset:0;z-index:1;
+  touch-action:none;
+  background:#1c1c1c;
+  overflow:hidden;
+  cursor:grab;
+}
+#map-layer:active{ cursor:grabbing; }
+#map-placeholder{
+  display:block;
+  position:absolute;
+  transform-origin:0 0;
+  touch-action:none;
+  user-select:none;
+  filter:blur(8px);
+  transition:opacity .35s ease;
+  width:3392px;
+  height:4178px;
+}
+#map-image{
+  display:block;
+  position:absolute;
+  transform-origin:0 0;
+  touch-action:none;
+  user-select:none;
+  opacity:0;
+  transition:opacity .35s ease;
+  image-rendering:-webkit-optimize-contrast;
+  image-rendering:crisp-edges;
+  width:3392px;
+  height:4178px;
+}
+#map-image.loaded{ opacity:1; }
+#pdf-loading{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  color:#555;font-family:'Barlow Condensed',sans-serif;
+  font-size:16px;letter-spacing:2px;text-transform:uppercase;
+}
+
+/* ════════════════════════════════════════
+   LOGO — always visible top-left
+════════════════════════════════════════ */
+#logo{
+  position:fixed;top:0;left:0;z-index:5;
+  padding:14px 16px;
+  pointer-events:none;
+  line-height:1;
+}
+#logo .l1{
+  font-family:'Anton',sans-serif;
+  color:var(--white);font-size:24px;
+  letter-spacing:.5px;
+  text-shadow:1px 1px 0 #000,2px 2px 6px rgba(0,0,0,.8);
+}
+#logo .l2{
+  font-family:'Anton',sans-serif;
+  color:var(--red);font-size:14px;letter-spacing:2px;
+  margin-top:1px;
+}
+
+/* ════════════════════════════════════════
+   CARDS OVERLAY
+════════════════════════════════════════ */
+#cards-screen{
+  position:fixed;inset:0;z-index:10;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:0;
+  opacity:0;pointer-events:none;
+  transition:opacity .3s var(--ease);
+}
+#cards-screen.visible{opacity:1;pointer-events:auto}
+
+/* frosted-dark backdrop */
+#cards-screen::before{
+  content:'';position:absolute;inset:0;
+  background:rgba(8,8,8,.78);
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+  pointer-events:none;
+}
+
+/* ── next-card hint style ── */
+.next-hint{
+  font-size:13px;line-height:1.6;color:#666;
+  letter-spacing:.3px;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+
+/* ════════════════════════════════════════
+   CAROUSEL TRACK
+════════════════════════════════════════ */
+#carousel-track{
+  position:relative;z-index:1;
+  width:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:0;
+  touch-action:pan-y;
+  user-select:none;
+  height:70vh;
+  max-height:520px;
+}
+
+/* card slots */
+.c-slot{
+  position:absolute;
+  --cw: min(62vw, 260px);
+  width:var(--cw);
+  height:100%;
+  transition:transform .38s var(--ease), opacity .38s var(--ease), filter .38s var(--ease);
+  cursor:pointer;
+  will-change:transform,opacity;
+}
+@media (max-width:600px){
+  #carousel-track{ height:60vh; max-height:440px; }
+  .c-slot{ --cw: min(54vw, 230px); }
+}
+.c-slot.pos-center{
+  transform:translateX(0) scale(1);
+  opacity:1;filter:none;
+  cursor:default;
+  z-index:3;
+}
+.c-slot.pos-left{
+  transform:translateX(calc(-1 * var(--cw) * .72)) scale(.82);
+  opacity:.45;filter:brightness(.5);
+  z-index:2;
+}
+.c-slot.pos-right{
+  transform:translateX(calc(var(--cw) * .72)) scale(.82);
+  opacity:.45;filter:brightness(.5);
+  z-index:2;
+}
+.c-slot.pos-far-left{
+  transform:translateX(calc(-1 * var(--cw) * 1.3)) scale(.7);
+  opacity:0;pointer-events:none;
+  z-index:1;
+}
+.c-slot.pos-far-right{
+  transform:translateX(calc(var(--cw) * 1.3)) scale(.7);
+  opacity:0;pointer-events:none;
+  z-index:1;
+}
+
+/* ════════════════════════════════════════
+   CARD SHELL
+════════════════════════════════════════ */
+.card{
+  width:100%;height:100%;
+  border-radius:var(--card-r);
+  border:5px solid var(--white);
+  overflow:hidden;
+  box-shadow:0 20px 50px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.06);
+  display:flex;flex-direction:column;
+  background:var(--ink);
+  position:relative;
+}
+
+/* ── badge (num + magnifier) ── */
+.card-badge{
+  position:absolute;top:12px;right:12px;z-index:4;
+  background:var(--white);color:var(--ink);
+  font-weight:700;font-size:12px;letter-spacing:.5px;
+  padding:3px 9px;border-radius:5px;
+  display:flex;align-items:center;gap:5px;
+  pointer-events:none;
+  direction:ltr;
+}
+.badge-icon{display:inline-flex;align-items:center;flex-shrink:0}
+
+/* ── QUESTION text ── */
+.q-text{
+  font-family:'Anton',sans-serif;
+  font-size:clamp(20px,6vw,30px);
+  line-height:1.08;text-transform:uppercase;
+  color:var(--white);
+  font-style:italic;
+  letter-spacing:.5px;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+.q-tap-hint{
+  margin-top:14px;
+  font-size:11px;letter-spacing:2.5px;text-transform:uppercase;
+  color:#3a3a3a;
+  direction:ltr;
+}
+
+/* ── shared image slot (top of every card) ── */
+.card-img{
+  width:100%;aspect-ratio:4/3;flex-shrink:0;
+  background:#f0f0f0;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.card-img.full{
+  aspect-ratio:auto;flex:1;height:100%;
+}
+.card-img.full img{ object-fit:contain; }
+.card-img.dark{background:#1a1a1a}
+.card-img img{width:100%;height:100%;object-fit:cover;display:block}
+.card-img .scene-emoji{font-size:56px;line-height:1}
+.card-img .img-icon{color:#999;opacity:.4}
+.card-img .img-icon.light{color:#777;opacity:.45}
+
+/* SOLVED stamp */
+.solved-stamp{
+  position:absolute;bottom:8px;right:8px;
+  font-family:'Anton',sans-serif;font-size:24px;
+  color:var(--red);border:3px solid var(--red);
+  padding:1px 6px;border-radius:3px;
+  transform:rotate(-9deg);
+  background:rgba(255,255,255,.12);
+  letter-spacing:1px;
+  direction:ltr;
+}
+
+/* ── shared text pane (bottom of every card) ── */
+.card-text{
+  flex:1;display:flex;flex-direction:column;
+  padding:14px 16px 16px;
+  background:var(--ink);color:var(--white);
+  overflow:hidden;
+}
+.card-text.center{align-items:center;justify-content:center;text-align:center}
+.card-text.light{background:var(--white);color:var(--ink)}
+.card-text.with-btn{padding-bottom:68px}
+
+/* ── INTRO text ── */
+.intro-title{
+  font-family:'Anton',sans-serif;
+  font-size:20px;text-transform:uppercase;
+  text-decoration:underline;text-underline-offset:3px;
+  margin-bottom:8px;color:var(--ink);
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+.intro-desc{
+  font-size:13px;line-height:1.55;color:#2a2a2a;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+
+/* ── SOLVED text ── */
+.solved-title{
+  font-family:'Anton',sans-serif;
+  font-size:18px;text-transform:uppercase;
+  text-decoration:underline;text-underline-offset:3px;
+  color:var(--white);margin-bottom:6px;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+.solved-desc{
+  font-size:12.5px;line-height:1.55;color:#bbb;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+
+/* ── LOCKED face ── */
+.face-locked{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:var(--ink);gap:10px;
+}
+.lock-icon-big{opacity:.25;color:var(--white);display:flex}
+.lock-label{
+  font-size:11px;letter-spacing:3px;text-transform:uppercase;
+  color:#333;
+  direction:ltr;
+}
+
+/* ── SOLVE button (on unsolved question card) ── */
+.solve-bar{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:10px 14px 14px;
+  background:linear-gradient(to top,rgba(10,10,10,1) 60%,transparent);
+  z-index:3;
+}
+.solve-bar-btn{
+  width:100%;padding:11px;
+  background:var(--white);color:var(--ink);
+  border:none;border-radius:10px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:14px;letter-spacing:1.5px;
+  text-transform:uppercase;cursor:pointer;
+  transition:background .15s, transform .1s;
+  direction:ltr;
+}
+.solve-bar-btn:active{transform:scale(.97)}
+
+/* ════════════════════════════════════════
+   NAV DOTS
+════════════════════════════════════════ */
+#nav-strip{
+  position:relative;z-index:2;
+  margin-top:20px;
+  display:flex;align-items:center;justify-content:center;
+  gap:9px;padding:0 20px;
+  overflow-x:auto;scrollbar-width:none;
+  max-width:100vw;
+  direction:ltr;
+}
+#nav-strip::-webkit-scrollbar{display:none}
+
+.ndot{
+  flex-shrink:0;
+  width:34px;height:34px;border-radius:50%;
+  border:2.5px solid #383838;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:#383838;
+  cursor:pointer;
+  transition:all .22s var(--ease);
+  position:relative;
+}
+.ndot:hover:not(.nd-locked){border-color:#777;color:#777;transform:scale(1.1)}
+.ndot.nd-active{
+  border-color:var(--white);
+  box-shadow:0 0 0 3px rgba(255,255,255,.12);
+  background:radial-gradient(circle,var(--white) 32%,transparent 37%);
+}
+.ndot.nd-solved{border-color:#ddd;color:#ddd;font-size:15px}
+.ndot.nd-locked{border-color:#222;color:#222;cursor:default}
+
+/* progress bar under dots */
+#progress-bar-wrap{
+  position:relative;z-index:2;
+  margin-top:10px;
+  width:min(260px,70vw);
+  height:2px;background:rgba(255,255,255,.08);
+  border-radius:2px;
+}
+#progress-bar-fill{
+  height:100%;background:var(--red);border-radius:2px;
+  transition:width .4s var(--ease);
+}
+
+/* ════════════════════════════════════════
+   HELP / ? BUTTON
+════════════════════════════════════════ */
+#help-btn{
+  position:fixed;bottom:22px;right:16px;z-index:20;
+  width:58px;height:84px;
+  background:var(--ink);
+  border:3px solid var(--white);border-radius:12px;
+  color:var(--white);
+  font-family:'Anton',sans-serif;font-size:46px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.65);
+  transition:background .18s, border-color .18s, transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+#help-btn:active{transform:scale(.95)}
+body.cards-open #help-btn,
+body.cards-open #draw-toolbar,
+body.cards-open #color-popup{
+  display:none;
+}
+
+/* ── DRAW LAYER (canvas overlay on the map) ── */
+#draw-canvas{
+  position:fixed;inset:0;z-index:4;
+  width:100%;height:100%;
+  touch-action:none;
+  pointer-events:none;
+}
+#draw-canvas.active{pointer-events:auto}
+
+/* ── DRAW TOOLBAR ── */
+#draw-toolbar{
+  position:fixed;bottom:22px;left:16px;z-index:20;
+  display:flex;flex-direction:column;gap:10px;
+  align-items:center;
+}
+.draw-tool-btn{
+  width:50px;height:50px;
+  background:var(--ink);
+  border:3px solid var(--white);border-radius:12px;
+  color:var(--white);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;
+  cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.65);
+  transition:background .18s, border-color .18s, transform .1s;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+}
+.draw-tool-btn:active{transform:scale(.95)}
+.draw-tool-btn.on{border-color:var(--red);background:var(--red)}
+#color-dot{
+  width:20px;height:20px;border-radius:50%;
+  border:2px solid var(--white);
+  background:var(--red);
+  pointer-events:none;
+}
+#color-popup{
+  position:absolute;bottom:0;left:62px;
+  display:flex;flex-direction:column;gap:8px;
+  background:var(--ink);border:2px solid var(--white);
+  border-radius:12px;padding:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.65);
+  opacity:0;pointer-events:none;transform:translateX(-6px);
+  transition:opacity .15s, transform .15s;
+}
+#color-popup.show{opacity:1;pointer-events:auto;transform:translateX(0)}
+.color-swatch{
+  width:26px;height:26px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.5);
+  cursor:pointer;
+}
+.color-swatch.sel{border-color:var(--white);box-shadow:0 0 0 2px var(--red)}
+
+/* ── close button (top of card overlay) ── */
+#close-cards-btn{
+  position:fixed;top:14px;right:16px;z-index:30;
+  width:42px;height:42px;border-radius:50%;
+  background:var(--ink);
+  border:2.5px solid var(--white);
+  color:var(--white);
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  box-shadow:0 6px 18px rgba(0,0,0,.6);
+  transition:background .15s, transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+#close-cards-btn:active{transform:scale(.92)}
+#close-cards-btn:hover{background:var(--red);border-color:var(--red)}
+
+/* ════════════════════════════════════════
+   HINT SHEET
+════════════════════════════════════════ */
+#hint-overlay{
+  position:fixed;inset:0;z-index:40;
+  background:rgba(0,0,0,.7);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s;
+}
+#hint-overlay.open{opacity:1;pointer-events:auto}
+.hint-sheet{
+  background:#161616;
+  border:1.5px solid var(--border);border-bottom:none;
+  border-radius:20px 20px 0 0;
+  padding:16px 22px 38px;
+  width:100%;max-width:440px;
+  transform:translateY(24px);
+  transition:transform .32s var(--ease);
+}
+#hint-overlay.open .hint-sheet{transform:translateY(0)}
+.hint-drag{
+  width:36px;height:4px;background:#2e2e2e;border-radius:2px;
+  margin:0 auto 16px;
+}
+.hint-head{
+  font-family:'Anton',sans-serif;font-size:19px;color:var(--white);
+  margin-bottom:10px;display:flex;align-items:center;gap:8px;
+  direction:rtl;
+}
+.hint-body-text{
+  color:#999;font-size:15px;line-height:1.65;
+  direction:rtl;
+  text-align:right;
+  unicode-bidi:embed;
+}
+.hint-close{
+  margin-top:18px;width:100%;padding:13px;
+  background:var(--red);color:var(--white);
+  border:none;border-radius:10px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;
+  transition:background .15s;
+  direction:ltr;
+}
+.hint-close:hover{background:#a50008}
+
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:120px;left:50%;transform:translateX(-50%) translateY(10px);
+  z-index:50;
+  background:rgba(20,20,20,.95);
+  border:1px solid #333;
+  color:var(--white);
+  font-size:13px;letter-spacing:1px;
+  padding:10px 20px;border-radius:30px;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s, transform .2s;
+  white-space:nowrap;
+  direction:ltr;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ════════════════════════════════════════
+   ANIMATIONS
+════════════════════════════════════════ */
+@keyframes cardIn{
+  from{opacity:0;transform:translateY(12px) scale(.97)}
+  to  {opacity:1;transform:none}
+}
+.card-enter{animation:cardIn .3s var(--ease) both}
+
+@media(prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ── MAP ── -->
+<div id="map-layer">
+  <img id="map-placeholder" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAAxACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDswWyPn4HtTmcKcZOO5qPLEAgYHfNKSxbO4bc9aAHFmLAZI75FALY4OfekBw+OWPbNBIXhsnPpQAvO372T654opF6FsYFFAADhshenTNNOzOT1PcH+lOB3DAz7gVEvJwMj8OaAJO4JzjHalwSD29u9AVUCA/KlHJGDhm9aAEDEsFB98UUFiTtKknuQOKKAGlsnAPGOvSnA5ABzkUCRGbbsOM/U1N5YQna3bOOtAEXTkDPqPQU3Cq4zx6+lT+UoHPTGSc01o224ABBoAgeTJJKnk9faipooOOMKv1yTRQAy3/13/AabJ/rW+lFFAFkdD9BSt900UUAMT7iUUUUAf//Z" alt="" draggable="false"/>
+  <img id="map-image" width="3392" height="4178" alt="" draggable="false" loading="eager" decoding="async"/>
+  <div id="pdf-loading">Loading map…</div>
+</div>
+
+<!-- ── DRAW LAYER ── -->
+<canvas id="draw-canvas"></canvas>
+
+<!-- ── CARDS OVERLAY ── -->
+<div id="cards-screen" role="dialog" aria-modal="true" aria-label="Case cards">
+  <button id="close-cards-btn" aria-label="Close case cards">✕</button>
+  <div id="carousel-track"
+       role="listbox" aria-label="Case steps"
+       aria-live="polite">
+  </div>
+
+  <nav id="nav-strip" aria-label="Step navigation"></nav>
+  <div id="progress-bar-wrap"><div id="progress-bar-fill"></div></div>
+</div>
+
+<!-- ── HELP BTN ── -->
+<button id="help-btn" aria-label="Open case cards">?</button>
+
+<!-- ── DRAW TOOLBAR ── -->
+<div id="draw-toolbar">
+  <button class="draw-tool-btn" id="pen-btn" aria-label="Pen">
+    <span id="color-dot"></span>
+    <div id="color-popup">
+      <div class="color-swatch sel" style="background:#c8000a" data-color="#c8000a"></div>
+      <div class="color-swatch" style="background:#f5f5f5" data-color="#f5f5f5"></div>
+      <div class="color-swatch" style="background:#1e90ff" data-color="#1e90ff"></div>
+      <div class="color-swatch" style="background:#2ecc40" data-color="#2ecc40"></div>
+      <div class="color-swatch" style="background:#ffd700" data-color="#ffd700"></div>
+    </div>
+  </button>
+  <button class="draw-tool-btn" id="eraser-btn" aria-label="Eraser">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M16.5 3.5c.8-.8 2.1-.8 2.9 0l1.1 1.1c.8.8.8 2.1 0 2.9l-9.5 9.5H5.5l-1-3.5 9.5-9.5 2.5 2.5"/>
+      <path d="M9 17h11"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ── HINT SHEET ── -->
+<div id="hint-overlay" role="dialog" aria-modal="true" aria-label="Hint">
+  <div class="hint-sheet">
+    <div class="hint-drag"></div>
+    <div class="hint-head">💡 Hint</div>
+    <p class="hint-body-text" id="hint-body-txt"></p>
+    <button class="hint-close" id="hint-close-btn">Got it</button>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+document.addEventListener('gesturestart', e=>e.preventDefault());
+document.addEventListener('gesturechange', e=>e.preventDefault());
+document.addEventListener('gestureend', e=>e.preventDefault());
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e=>{
+  const now = Date.now();
+  if(now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, {passive:false});
+
+/* ══════════════════════════════════════
+   DATA
+══════════════════════════════════════ */
+const CASES = [
+  {
+    num:'1/7', type:'intro',
+    title:'',
+    desc:'',
+    art:'💀',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1781996088/1-7_dkuig4.png',
+    hint:'.',
+    solved:false, locked:false,
+  },
+  {
+    num:'2/7', type:'question',
+    question:'جد\nالحادثة!',
+    title:'',
+    desc:'.',
+    scene:'',
+    img:'',
+    hint:'.',
+    solved:false, locked:false,
+  },
+  {
+    num:'3/7', type:'question',
+    question:'هل كان\nحادثًا؟',
+    title:'F2: تخريب!',
+    desc:'يوجد زوج مقص ضخم على السطح. نشتبه أن أحدهم قطع الحبل الذي كان البيانو معلقًا به.\nلكن يبدو أن الجاني فرّ من مسرح الجريمة منذ فترة طويلة.',
+    scene:'',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1782002559/F2_htr8gf.png',
+    hint:'Trace Lars Vegas backwards from the crime scene. Look for a food stall in the market area.',
+    solved:false, locked:false,
+  },
+  {
+    num:'4/7', type:'question',
+    question:'أين كان\nيعيش الضحية؟',
+    title:'G3: المنزل على الضفة',
+    desc:'كان الضحية يعيش في منزل صغير وجميل على ضفة النهر.\nربما تجدون هنا أدلة عن حياته.',
+    scene:'',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1782002560/G3_htxduq.png',
+    hint:'Solve step 3 first.',
+    solved:false, locked:true,
+  },
+  {
+    num:'5/7', type:'question',
+    question:'إلى أين كان\nالضحية ينوي\nالذهاب؟',
+    title:'F1: نادي التنس',
+    desc:'الضحية هو لاعب التنس الناجح تشاك بوريس.\nكانت معه حقيبة التنس وقت مقتله، وكان على الأغلب ينوي الذهاب إلى نادي التنس.\nكان هناك بطولة في النادي، لكن تشاك لم يصل إليها أبدًا...',
+    scene:'',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1782002559/F1_f8vicy.png',
+    hint:'Solve step 4 first.',
+    solved:false, locked:true,
+  },
+  {
+    num:'6/7', type:'question',
+    question:'من الجاني وكيف\nيمكن إثبات\nتورطه؟',
+    title:'E4: الخصم',
+    desc:'لاعب تنس آخر يُدعى توني ماهوني فاز بالبطولة.\nشوهدت سيارته قرب مسرح الجريمة وقت الحادثة.\nكما شهد بعض الناس أنه كان يحمل المقص الضخم وقت ركوبه السيارة!',
+    scene:'',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1782002560/E4_noo7gt.png',
+    hint:'Solve step 5 first.',
+    solved:false, locked:true,
+  },
+  {
+    num:'7/7', type:'question',
+    question:'أين يعيش\nالجاني؟',
+    title:'D3: الشقة',
+    desc:'يعيش توني ماهوني في شقة صغيرة خلف محل النظارات.\nتوني لاعب تنس ناجح، لكنه ليس بنجاح تشاك بوريس.\nولكي يفوز بهذه البطولة المهمة، أراد التخلص من منافسه.\n\nعمل رائع أيها المحققون!',
+    scene:'',
+    img:'https://res.cloudinary.com/dnoe33muk/image/upload/v1782003858/D3_mnpzym.jpg',
+    hint:'Solve step 6 first.',
+    solved:false, locked:true,
+  },
+];
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let cur = 0;
+let cardsOpen = false;
+let isAnimating = false;
+
+const track     = document.getElementById('carousel-track');
+const navStrip  = document.getElementById('nav-strip');
+const progFill  = document.getElementById('progress-bar-fill');
+const helpBtn   = document.getElementById('help-btn');
+const cardsScr  = document.getElementById('cards-screen');
+const hintOverlay = document.getElementById('hint-overlay');
+const hintTxt   = document.getElementById('hint-body-txt');
+const toastEl   = document.getElementById('toast');
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+let toastTimer;
+function showToast(msg){
+  clearTimeout(toastTimer);
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200);
+}
+
+/* ══════════════════════════════════════
+   ICONS
+══════════════════════════════════════ */
+function iconMagnifier(){
+  return `<svg class="badge-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"></circle><line x1="20" y1="20" x2="15.4" y2="15.4"></line></svg>`;
+}
+function iconLock(size){
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>`;
+}
+function iconPhoto(size, cls){
+  return `<svg class="img-icon ${cls||''}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 16l-5.5-5.5a2 2 0 0 0-2.8 0L3 19"></path></svg>`;
+}
+
+/* ══════════════════════════════════════
+   BUILD CARD HTML
+══════════════════════════════════════ */
+function cardHTML(c, isNext){
+  if(c.locked){
+    return `<div class="card">
+      <div class="face-locked">
+        <div class="lock-icon-big">${iconLock(44)}</div>
+        <div class="lock-label">Solve previous clues</div>
+      </div>
+    </div>`;
+  }
+  if(c.type === 'intro'){
+    const hasText = c.title || c.desc;
+    return `<div class="card">
+      <div class="card-img${c.img ? '' : ' dark'}${hasText ? '' : ' full'}">
+        ${c.img ? `<img src="${c.img}" alt="" loading="lazy"/>` : `<span class="scene-emoji">${c.art}</span>`}
+      </div>
+      ${hasText ? `<div class="card-text light">
+        <div class="intro-title">${c.title}</div>
+        <p class="intro-desc">${c.desc.replace(/\n/g,'<br>')}</p>
+      </div>` : ''}
+    </div>`;
+  }
+  if(c.solved){
+    const hasText = c.title || c.desc;
+    return `<div class="card">
+      <div class="card-img${c.img ? '' : ' dark'}${hasText ? '' : ' full'}">
+        ${c.img ? `<img src="${c.img}" alt="" loading="lazy"/>` : `<span class="scene-emoji">${c.scene}</span>`}
+        <div class="solved-stamp">SOLVED</div>
+      </div>
+      ${hasText ? `<div class="card-text">
+        <div class="solved-title">${c.title}</div>
+        <p class="solved-desc">${c.desc.replace(/\n/g,'<br>')}</p>
+      </div>` : ''}
+    </div>`;
+  }
+  if(isNext){
+    return `<div class="card">
+      <div class="card-badge">${iconMagnifier()}${c.num}</div>
+      <div class="card-text center with-btn">
+        <p class="next-hint">${c.hint}</p>
+      </div>
+      <div class="solve-bar">
+        <button class="solve-bar-btn" data-solve>✔ &nbsp;MARK AS SOLVED</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="card">
+    <div class="card-badge">${iconMagnifier()}${c.num}</div>
+    <div class="card-text center with-btn">
+      <h2 class="q-text">${c.question.replace(/\n/g,'<br>')}</h2>
+      <p class="q-tap-hint">Tap below when found</p>
+    </div>
+    <div class="solve-bar">
+      <button class="solve-bar-btn" data-solve>✔ &nbsp;MARK AS SOLVED</button>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   POSITION CLASSES
+══════════════════════════════════════ */
+const POS = ['pos-far-left','pos-left','pos-center','pos-right','pos-far-right'];
+
+function posClass(offset){
+  const o = Math.max(-2, Math.min(2, offset));
+  return POS[o + 2];
+}
+
+/* ══════════════════════════════════════
+   RENDER CAROUSEL
+══════════════════════════════════════ */
+function renderCarousel(){
+  track.innerHTML = '';
+
+  for(let i = Math.max(0, cur-2); i <= Math.min(CASES.length-1, cur+2); i++){
+    const c = CASES[i];
+    const offset = i - cur;
+    const slot = document.createElement('div');
+    slot.className = 'c-slot ' + posClass(offset);
+    slot.setAttribute('role','option');
+    slot.setAttribute('aria-selected', offset===0 ? 'true':'false');
+    const isNext = offset > 0 && !c.locked && !c.solved;
+    slot.innerHTML = cardHTML(c, isNext);
+
+    if(offset !== 0){
+      slot.addEventListener('click', ()=> navigate(offset > 0 ? 1 : -1));
+    }
+
+    const solveBtn = slot.querySelector('[data-solve]');
+    if(solveBtn){
+      const cardIdx = i;
+      solveBtn.addEventListener('click', e=>{
+        e.stopPropagation();
+        cur = cardIdx;
+        CASES[cur].solved = true;
+        if(cur+1 < CASES.length) CASES[cur+1].locked = false;
+        showToast('✔ Step solved!');
+        renderCarousel();
+        renderNav();
+      });
+    }
+
+    if(offset === 0) slot.querySelector('.card').classList.add('card-enter');
+    track.appendChild(slot);
+  }
+}
+
+/* ══════════════════════════════════════
+   NAVIGATE
+══════════════════════════════════════ */
+function navigate(dir){
+  const next = cur + dir;
+  if(next < 0 || next >= CASES.length || isAnimating) return;
+  isAnimating = true;
+  cur = next;
+  renderCarousel();
+  renderNav();
+  setTimeout(()=>{ isAnimating = false; }, 380);
+}
+
+/* ══════════════════════════════════════
+   NAV DOTS
+══════════════════════════════════════ */
+function renderNav(){
+  navStrip.innerHTML = '';
+  const solvedCount = CASES.filter(c=>c.solved).length;
+  const total = CASES.length;
+
+  CASES.forEach((c,i)=>{
+    const d = document.createElement('button');
+    d.setAttribute('aria-label', `Step ${i+1}`);
+    if(c.solved){
+      d.className='ndot nd-solved'; d.innerHTML='✓';
+    } else if(c.locked){
+      d.className='ndot nd-locked'; d.innerHTML=iconLock(13);
+      d.setAttribute('disabled','');
+    } else if(i===cur){
+      d.className='ndot nd-active';
+    } else {
+      d.className='ndot';
+    }
+
+    if(!c.locked){
+      d.addEventListener('click',()=>{
+        if(i===cur) return;
+        cur = i;
+        renderCarousel();
+        renderNav();
+      });
+    }
+    navStrip.appendChild(d);
+  });
+
+  progFill.style.width = (solvedCount / total * 100) + '%';
+}
+
+/* ══════════════════════════════════════
+   OPEN / CLOSE CARDS
+══════════════════════════════════════ */
+function openCards(){
+  cardsOpen = true;
+  cur = 0;
+  cardsScr.classList.add('visible');
+  document.body.classList.add('cards-open');
+  setToolActive(false);
+  colorPopup.classList.remove('show');
+  renderCarousel();
+  renderNav();
+}
+function closeCards(){
+  cardsOpen = false;
+  cardsScr.classList.remove('visible');
+  document.body.classList.remove('cards-open');
+}
+
+helpBtn.addEventListener('click',()=>{
+  if(!cardsOpen) openCards();
+});
+
+document.getElementById('close-cards-btn').addEventListener('click', closeCards);
+
+document.addEventListener('keydown',e=>{
+  if(!cardsOpen) return;
+  if(e.key==='ArrowRight') navigate(1);
+  if(e.key==='ArrowLeft')  navigate(-1);
+  if(e.key==='Escape')     closeCards();
+});
+
+/* ══════════════════════════════════════
+   SWIPE
+══════════════════════════════════════ */
+let tsX=0, tsY=0;
+track.addEventListener('touchstart', e=>{
+  tsX = e.touches[0].clientX;
+  tsY = e.touches[0].clientY;
+},{passive:true});
+track.addEventListener('touchend', e=>{
+  const dx = e.changedTouches[0].clientX - tsX;
+  const dy = e.changedTouches[0].clientY - tsY;
+  if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40){
+    navigate(dx < 0 ? 1 : -1);
+  }
+},{passive:true});
+
+/* ══════════════════════════════════════
+   HINT
+══════════════════════════════════════ */
+let helpPressTimer;
+helpBtn.addEventListener('pointerdown',()=>{
+  if(!cardsOpen) return;
+  helpPressTimer = setTimeout(()=>{
+    openHint();
+  }, 600);
+});
+helpBtn.addEventListener('pointerup',  ()=>clearTimeout(helpPressTimer));
+helpBtn.addEventListener('pointerleave',()=>clearTimeout(helpPressTimer));
+
+function openHint(){
+  const c = CASES[cur];
+  hintTxt.textContent = (c.locked || !c.hint)
+    ? 'Solve the previous step to unlock hints here.'
+    : c.hint;
+  hintOverlay.classList.add('open');
+}
+
+document.getElementById('hint-close-btn').addEventListener('click',()=>{
+  hintOverlay.classList.remove('open');
+});
+hintOverlay.addEventListener('click', e=>{
+  if(e.target === hintOverlay) hintOverlay.classList.remove('open');
+});
+
+/* ══════════════════════════════════════
+   FIREBASE
+══════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey:            "AIzaSyByRtF-ISgP-sgcrB13uiOnXLYoVe053Z8",
+  authDomain:         "nrx-9-e92a5.firebaseapp.com",
+  databaseURL:        "https://nrx-9-e92a5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:          "nrx-9-e92a5",
+};
+const ROOM_ID = "naw4lmnua71tn5tqhx9k";
+
+let fbReady = false;
+let dbRef = null;
+(function loadFirebase(){
+  const s1 = document.createElement('script');
+  s1.src = "https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js";
+  s1.onload = ()=>{
+    const s2 = document.createElement('script');
+    s2.src = "https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js";
+    s2.onload = initFirebase;
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+})();
+
+function initFirebase(){
+  try{
+    if(firebaseConfig.apiKey === "YOUR_API_KEY"){
+      console.warn("Firebase not configured.");
+      return;
+    }
+    firebase.initializeApp(firebaseConfig);
+    dbRef = firebase.database().ref('strokes/' + ROOM_ID);
+    fbReady = true;
+    dbRef.once('value', snap=>{
+      const all = snap.val() || {};
+      Object.values(all).forEach(s=>drawStroke(s, false));
+    });
+    dbRef.on('child_added', snap=>{
+      const s = snap.val();
+      if(s && s.from !== MY_ID) drawStroke(s, false);
+    });
+    firebase.database().ref('clear/' + ROOM_ID).on('value', snap=>{
+      const v = snap.val();
+      if(v && v.from !== MY_ID) clearCanvasLocal();
+    });
+  }catch(err){
+    console.error("Firebase init error:", err);
+  }
+}
+
+const MY_ID = Math.random().toString(36).slice(2);
+
+const MAP_NATIVE_W = 3392, MAP_NATIVE_H = 4178;
+
+// Shared map transform state — written by initImageMap, read by draw system
+const mapState = { scale: 1, panX: 0, panY: 0 };
+
+function screenToMapFrac(sx, sy){
+  return {
+    mx: (sx - mapState.panX) / mapState.scale / MAP_NATIVE_W,
+    my: (sy - mapState.panY) / mapState.scale / MAP_NATIVE_H
+  };
+}
+function mapFracToScreen(mx, my){
+  return {
+    x: mx * MAP_NATIVE_W * mapState.scale + mapState.panX,
+    y: my * MAP_NATIVE_H * mapState.scale + mapState.panY
+  };
+}
+
+let strokes = [];
+
+const drawCanvas = document.getElementById('draw-canvas');
+const dctx = drawCanvas.getContext('2d');
+function resizeCanvas(){
+  drawCanvas.width  = window.innerWidth;
+  drawCanvas.height = window.innerHeight;
+  redrawAllStrokes();
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+let tool = 'pen';
+let drawColor = '#c8000a';
+let drawing = false;
+let lastX = 0, lastY = 0;
+let toolActive = false;
+
+const penBtn      = document.getElementById('pen-btn');
+const eraserBtn   = document.getElementById('eraser-btn');
+const colorPopup  = document.getElementById('color-popup');
+const colorDot    = document.getElementById('color-dot');
+
+function setToolActive(active){
+  toolActive = active;
+  drawCanvas.classList.toggle('active', active);
+  penBtn.classList.toggle('on', active && tool==='pen');
+  eraserBtn.classList.toggle('on', active && tool==='eraser');
+}
+
+penBtn.addEventListener('click', (e)=>{
+  if(e.target.closest('.color-swatch')) return;
+  if(toolActive && tool==='pen'){
+    colorPopup.classList.toggle('show');
+    return;
+  }
+  tool = 'pen';
+  setToolActive(true);
+});
+
+eraserBtn.addEventListener('click', ()=>{
+  colorPopup.classList.remove('show');
+  if(toolActive && tool==='eraser'){ setToolActive(false); return; }
+  tool = 'eraser';
+  setToolActive(true);
+});
+
+let toolPressTimer = null;
+let toolLongPressed = false;
+function armLongPress(btn){
+  btn.addEventListener('pointerdown', ()=>{
+    toolLongPressed = false;
+    toolPressTimer = setTimeout(()=>{
+      toolLongPressed = true;
+      setToolActive(false);
+      colorPopup.classList.remove('show');
+      if(navigator.vibrate) navigator.vibrate(20);
+    }, 450);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>{
+    btn.addEventListener(ev, ()=>clearTimeout(toolPressTimer));
+  });
+  btn.addEventListener('click', (e)=>{
+    if(toolLongPressed){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+}
+armLongPress(penBtn);
+armLongPress(eraserBtn);
+
+document.querySelectorAll('.color-swatch').forEach(sw=>{
+  sw.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('sel'));
+    sw.classList.add('sel');
+    drawColor = sw.dataset.color;
+    colorDot.style.background = drawColor;
+    colorPopup.classList.remove('show');
+  });
+});
+
+document.addEventListener('pointerdown', (e)=>{
+  if(!e.target.closest('#pen-btn')) colorPopup.classList.remove('show');
+});
+
+function getPos(e){
+  const rect = drawCanvas.getBoundingClientRect();
+  return { x:(e.clientX-rect.left), y:(e.clientY-rect.top) };
+}
+
+function drawSegment(x0,y0,x1,y1,color,size,eraser){
+  dctx.save();
+  dctx.lineJoin = 'round';
+  dctx.lineCap  = 'round';
+  dctx.lineWidth = size;
+  if(eraser){
+    dctx.globalCompositeOperation = 'destination-out';
+    dctx.strokeStyle = 'rgba(0,0,0,1)';
+  }else{
+    dctx.globalCompositeOperation = 'source-over';
+    dctx.strokeStyle = color;
+  }
+  dctx.beginPath();
+  dctx.moveTo(x0,y0);
+  dctx.lineTo(x1,y1);
+  dctx.stroke();
+  dctx.restore();
+}
+
+function drawStroke(s, isLocal){
+  const p0 = mapFracToScreen(s.mx0, s.my0);
+  const p1 = mapFracToScreen(s.mx1, s.my1);
+  drawSegment(p0.x, p0.y, p1.x, p1.y, s.color, s.size, s.eraser);
+  strokes.push(s);
+}
+
+function redrawAllStrokes(){
+  dctx.clearRect(0,0,drawCanvas.width, drawCanvas.height);
+  strokes.forEach(s=>{
+    const p0 = mapFracToScreen(s.mx0, s.my0);
+    const p1 = mapFracToScreen(s.mx1, s.my1);
+    drawSegment(p0.x, p0.y, p1.x, p1.y, s.color, s.size, s.eraser);
+  });
+}
+
+let redrawScheduled = false;
+function scheduleRedrawStrokes(){
+  if(redrawScheduled) return;
+  redrawScheduled = true;
+  requestAnimationFrame(()=>{
+    redrawScheduled = false;
+    redrawAllStrokes();
+  });
+}
+
+function clearCanvasLocal(){
+  dctx.clearRect(0,0,drawCanvas.width, drawCanvas.height);
+  strokes = [];
+}
+
+drawCanvas.addEventListener('pointerdown', (e)=>{
+  if(!toolActive) return;
+  drawing = true;
+  const p = getPos(e);
+  lastX = p.x; lastY = p.y;
+  drawCanvas.setPointerCapture(e.pointerId);
+});
+
+drawCanvas.addEventListener('pointermove', (e)=>{
+  if(!drawing || !toolActive) return;
+  const p = getPos(e);
+  const eraser = tool === 'eraser';
+  const size = eraser ? 26 : 5;
+  drawSegment(lastX, lastY, p.x, p.y, drawColor, size, eraser);
+
+  const m0 = screenToMapFrac(lastX, lastY);
+  const m1 = screenToMapFrac(p.x, p.y);
+  const stroke = {
+    mx0: m0.mx, my0: m0.my, mx1: m1.mx, my1: m1.my,
+    color: drawColor, size: size, eraser: eraser, from: MY_ID,
+    t: Date.now()
+  };
+  strokes.push(stroke);
+  if(fbReady && dbRef){
+    dbRef.push(stroke);
+  }
+  lastX = p.x; lastY = p.y;
+});
+
+['pointerup','pointercancel','pointerleave'].forEach(ev=>{
+  drawCanvas.addEventListener(ev, ()=>{ drawing = false; });
+});
+
+/* ══════════════════════════════════════
+   MAP RENDERER
+══════════════════════════════════════ */
+(function initImageMap(){
+  const mapLayer       = document.getElementById('map-layer');
+  const mapImage       = document.getElementById('map-image');
+  const mapPlaceholder = document.getElementById('map-placeholder');
+  const loadingDiv     = document.getElementById('pdf-loading');
+
+  const MAP_SRC  = 'map.webp';
+  const NATIVE_W = 3392;
+  const NATIVE_H = 4178;
+
+  // ─── state ───────────────────────────────────────────────
+  // scale = CSS pixels per map pixel at zoom=1
+  // panX/panY = CSS-pixel offset of map's top-left corner from viewport top-left
+  let scale = 1;   // set by resetView()
+  let panX  = 0;
+  let panY  = 0;
+
+  // ─── helpers ─────────────────────────────────────────────
+  function mapW(){ return NATIVE_W * scale; }
+  function mapH(){ return NATIVE_H * scale; }
+  const W = ()=> window.innerWidth;
+  const H = ()=> window.innerHeight;
+
+  // Padding: how far the map can be dragged off-screen (px)
+  const PAD_X = ()=> W() * 0.6;
+  const PAD_Y = ()=> H() * 0.3;
+
+  function clamp(){
+    // X: left edge can go as far right as PAD_X, right edge as far left as W()-PAD_X
+    panX = Math.min(PAD_X(), Math.max(W() - mapW() - PAD_X(), panX));
+    // Y: same logic
+    panY = Math.min(PAD_Y(), Math.max(H() - mapH() - PAD_Y(), panY));
+  }
+
+  function apply(){
+    mapState.scale = scale;
+    mapState.panX  = panX;
+    mapState.panY  = panY;
+    const t = `translate(${panX}px,${panY}px) scale(${scale})`;
+    mapImage.style.transform       = t;
+    mapPlaceholder.style.transform = t;
+    scheduleRedrawStrokes();
+  }
+
+  function resetView(){
+    // Fit map to screen width, center vertically
+    scale = W() / NATIVE_W;
+    panX  = 0;
+    panY  = (H() - mapH()) / 2;
+  }
+
+  // ─── init ────────────────────────────────────────────────
+  requestAnimationFrame(()=>{
+    resetView();
+    apply();
+  });
+
+  // ─── image load ──────────────────────────────────────────
+  mapImage.addEventListener('load', ()=>{
+    loadingDiv.style.display    = 'none';
+    mapImage.classList.add('loaded');
+    mapPlaceholder.style.opacity = '0';
+  }, { once: true });
+
+  mapImage.addEventListener('error', ()=>{
+    loadingDiv.style.display    = 'none';
+    mapPlaceholder.style.filter  = 'none';
+    mapPlaceholder.style.opacity = '1';
+  });
+
+  mapImage.src = MAP_SRC;
+
+  // ─── resize ──────────────────────────────────────────────
+  window.addEventListener('resize', ()=>{
+    resetView();
+    apply();
+  });
+
+  // ─── MOUSE drag ──────────────────────────────────────────
+  let mdragging = false, msx = 0, msy = 0, mpx = 0, mpy = 0;
+
+  mapLayer.addEventListener('mousedown', e=>{
+    if(toolActive) return;
+    mdragging = true;
+    msx = e.clientX; msy = e.clientY;
+    mpx = panX;      mpy = panY;
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!mdragging) return;
+    panX = mpx + (e.clientX - msx);
+    panY = mpy + (e.clientY - msy);
+    clamp(); apply();
+  });
+  window.addEventListener('mouseup', ()=>{ mdragging = false; });
+
+  // ─── MOUSE wheel zoom ────────────────────────────────────
+  mapLayer.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const MIN_SCALE = W() / NATIVE_W * 0.5;
+    const MAX_SCALE = W() / NATIVE_W * 10;
+    const factor   = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+    // zoom toward cursor
+    panX = e.clientX - (e.clientX - panX) * (newScale / scale);
+    panY = e.clientY - (e.clientY - panY) * (newScale / scale);
+    scale = newScale;
+    clamp(); apply();
+  }, { passive: false });
+
+  // ─── TOUCH pan & pinch ───────────────────────────────────
+  let t0x = 0, t0y = 0, startPanX = 0, startPanY = 0;
+  let prevMidX = 0, prevMidY = 0, prevDist = 1;
+
+  mapLayer.addEventListener('touchstart', e=>{
+    if(toolActive) return;
+    const t = e.touches;
+    if(t.length === 1){
+      t0x = t[0].clientX; t0y = t[0].clientY;
+      startPanX = panX;   startPanY = panY;
+    }
+    if(t.length === 2){
+      prevDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      prevMidX = (t[0].clientX + t[1].clientX) / 2;
+      prevMidY = (t[0].clientY + t[1].clientY) / 2;
+    }
+  }, { passive: true });
+
+  mapLayer.addEventListener('touchmove', e=>{
+    if(toolActive) return;
+    e.preventDefault();
+    const t = e.touches;
+    const MIN_SCALE = W() / NATIVE_W * 0.5;
+    const MAX_SCALE = W() / NATIVE_W * 10;
+
+    if(t.length === 1){
+      panX = startPanX + (t[0].clientX - t0x);
+      panY = startPanY + (t[0].clientY - t0y);
+      clamp(); apply();
+    }
+
+    if(t.length === 2){
+      const midX = (t[0].clientX + t[1].clientX) / 2;
+      const midY = (t[0].clientY + t[1].clientY) / 2;
+      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (dist / prevDist)));
+      // zoom toward pinch midpoint
+      panX = midX - (prevMidX - panX) * (newScale / scale);
+      panY = midY - (prevMidY - panY) * (newScale / scale);
+      scale = newScale;
+
+      clamp(); apply();
+      prevMidX = midX; prevMidY = midY; prevDist = dist;
+    }
+  }, { passive: false });
+})();
+</script>
+</body>
+</html>
