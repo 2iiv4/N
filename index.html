@@ -1314,7 +1314,7 @@ drawCanvas.addEventListener('pointermove', (e)=>{
 
   // ─── TOUCH pan & pinch ───────────────────────────────────
   let t0x = 0, t0y = 0, startPanX = 0, startPanY = 0;
-  let prevDist = 1; // متغير لتتبع مسافة الأصابع بين الإطارات
+  let prevMidX = 0, prevMidY = 0, prevDist = 1; // قمنا بإضافة متغيرات لتتبع مركز الأصابع بدقة
 
   mapLayer.addEventListener('touchstart', e=>{
     if(toolActive) return;
@@ -1324,8 +1324,10 @@ drawCanvas.addEventListener('pointermove', (e)=>{
       startPanX = panX;   startPanY = panY;
     }
     if(t.length === 2){
-      // التقاط المسافة الابتدائية فور لمس الشاشة بإصبعين
+      // التقاط المسافة والمركز الابتدائي فور لمس الشاشة بإصبعين
       prevDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      prevMidX = (t[0].clientX + t[1].clientX) / 2;
+      prevMidY = (t[0].clientY + t[1].clientY) / 2;
     }
   }, { passive: true });
 
@@ -1345,24 +1347,22 @@ drawCanvas.addEventListener('pointermove', (e)=>{
     if(t.length === 2){
       const midX = (t[0].clientX + t[1].clientX) / 2;
       const midY = (t[0].clientY + t[1].clientY) / 2;
-      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t0y);
 
       const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (dist / prevDist)));
       const actualF = newScale / scale; // معامل التغير الفعلي بين الإطار الحالي والسابق
 
-      // التكبير حول المركز الحالي للإصبعين: نحسب نقطة الخريطة الواقعة
-      // تحت المركز الحالي قبل التكبير، ثم نثبّتها تحت نفس المركز بعده
-      // (الاعتماد على المركز السابق هنا كان يسبب القفزات والاهتزاز)
-      const mapPtX = (midX - panX) / scale;
-      const mapPtY = (midY - panY) / scale;
-      panX = midX - mapPtX * actualF * scale;
-      panY = midY - mapPtY * actualF * scale;
+      // الحسابات الجديدة: تدمج عملية التكبير والتحريك معاً بناءً على حركة الأصابع المستمرة
+      panX = midX - (prevMidX - panX) * actualF;
+      panY = midY - (prevMidY - panY) * actualF;
       scale = newScale;
 
       clamp(); apply();
-
-      // تحديث القيم لتصبح مرجعاً للإطار القادم
+      
+      // تحديث القيم لتصبح مرجعاً للإطار القادم ومنع الانزلاق
       prevDist = dist;
+      prevMidX = midX;
+      prevMidY = midY;
     }
   }, { passive: false });
 })();
