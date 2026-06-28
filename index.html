@@ -1347,7 +1347,7 @@ drawCanvas.addEventListener('pointermove', (e)=>{
     if(t.length === 2){
       const midX = (t[0].clientX + t[1].clientX) / 2;
       const midY = (t[0].clientY + t[1].clientY) / 2;
-      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t0y);
+      const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
 
       const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (dist / prevDist)));
       const actualF = newScale / scale; // معامل التغير الفعلي بين الإطار الحالي والسابق
