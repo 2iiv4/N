@@ -1312,9 +1312,9 @@ drawCanvas.addEventListener('pointermove', (e)=>{
     clamp(); apply();
   }, { passive: false });
 
-  // ─── TOUCH pan & pinch ───────────────────────────────────
+  // ─── TOUCH pan & pinch (التكبير الممركز في منتصف الشاشة) ───
   let t0x = 0, t0y = 0, startPanX = 0, startPanY = 0;
-  let prevMidX = 0, prevMidY = 0, prevDist = 1; // قمنا بإضافة متغيرات لتتبع مركز الأصابع بدقة
+  let startScale = 1, startDist = 1;
 
   mapLayer.addEventListener('touchstart', e=>{
     if(toolActive) return;
@@ -1324,10 +1324,11 @@ drawCanvas.addEventListener('pointermove', (e)=>{
       startPanX = panX;   startPanY = panY;
     }
     if(t.length === 2){
-      // التقاط المسافة والمركز الابتدائي فور لمس الشاشة بإصبعين
-      prevDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
-      prevMidX = (t[0].clientX + t[1].clientX) / 2;
-      prevMidY = (t[0].clientY + t[1].clientY) / 2;
+      // حفظ الإحداثيات الابتدائية عند وضع الإصبعين
+      startScale = scale;
+      startPanX = panX;
+      startPanY = panY;
+      startDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
     }
   }, { passive: true });
 
@@ -1338,33 +1339,39 @@ drawCanvas.addEventListener('pointermove', (e)=>{
     const MIN_SCALE = W() / NATIVE_W * 0.5;
     const MAX_SCALE = W() / NATIVE_W * 10;
 
+    // 1) تحريك الخريطة بإصبع واحد (سلس وثابت)
     if(t.length === 1){
       panX = startPanX + (t[0].clientX - t0x);
       panY = startPanY + (t[0].clientY - t0y);
       clamp(); apply();
     }
 
+    // 2) التكبير بإصبعين ممركز حول وسط الشاشة تماماً لمنع أي قفز عشوائي
     if(t.length === 2){
-      const midX = (t[0].clientX + t[1].clientX) / 2;
-      const midY = (t[0].clientY + t[1].clientY) / 2;
       const dist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+      if(startDist > 0) {
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, startScale * (dist / startDist)));
+        
+        // نقطة الارتكاز الثابتة: منتصف شاشة المستخدم
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        
+        panX = cx - (cx - startPanX) * (newScale / startScale);
+        panY = cy - (cy - startPanY) * (newScale / startScale);
+        scale = newScale;
 
-      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (dist / prevDist)));
-      const actualF = newScale / scale; // معامل التغير الفعلي بين الإطار الحالي والسابق
-
-      // الحسابات الجديدة: تدمج عملية التكبير والتحريك معاً بناءً على حركة الأصابع المستمرة
-      panX = midX - (prevMidX - panX) * actualF;
-      panY = midY - (prevMidY - panY) * actualF;
-      scale = newScale;
-
-      clamp(); apply();
-      
-      // تحديث القيم لتصبح مرجعاً للإطار القادم ومنع الانزلاق
-      prevDist = dist;
-      prevMidX = midX;
-      prevMidY = midY;
+        clamp(); apply();
+      }
     }
   }, { passive: false });
+
+  mapLayer.addEventListener('touchend', e=>{
+    const t = e.touches;
+    if(t.length === 1){
+      t0x = t[0].clientX; t0y = t[0].clientY;
+      startPanX = panX;   startPanY = panY;
+    }
+  }, { passive: true });
 })();
 </script>
 </body>
